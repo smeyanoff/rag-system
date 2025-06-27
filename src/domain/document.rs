@@ -17,10 +17,6 @@ pub trait DocumentRepo {
     fn read(&self, doc_id: Uuid) -> Result<Document, Error>;
 }
 
-pub trait DocumentPreparer {
-    fn prepare(&self, document: &Document) -> Vec<Chunk>;
-}
-
 impl Document {
     pub fn new(text: String) -> Self {
         Self {
@@ -57,7 +53,8 @@ impl Chunk {
 pub trait ChunkRepo {
     fn save(&self, chunk: &Chunk) -> Result<(), Error>;
     fn delete(&self, chunk_id: Uuid) -> Result<(), Error>;
-    fn read(&self, doc_id: Uuid) -> Result<Vec<Chunk>, Error>;
+    fn read(&self, chunk_id: Uuid) -> Result<Chunk, Error>;
+    fn read_by_doc(&self, doc_id: Uuid) -> Result<Vec<Chunk>, Error>;
 }
 
 #[cfg(test)]

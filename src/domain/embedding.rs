@@ -2,7 +2,7 @@ use std::fmt::Error;
 
 use uuid::Uuid;
 
-use crate::domain::Chunk;
+use crate::domain::{document::Chunk, question::Question};
 
 pub struct ChunkEmbending {
     pub id: Uuid,
@@ -44,4 +44,27 @@ pub struct QuestionEmbending {
     pub id: Uuid,
     pub question_id: Uuid,
     pub vec: Vec<f64>,
+}
+
+impl QuestionEmbending {
+    pub fn new(
+        question: &Question,
+        vectorizer: &dyn TextVectorizer,
+    ) -> Result<QuestionEmbending, Error> {
+        match vectorizer.vectorize(question.text.as_str()) {
+            Ok(vec) => Ok(Self {
+                id: Uuid::new_v4(),
+                question_id: question.id,
+                vec: vec,
+            }),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+#[mockall::automock]
+pub trait QuestionEmbeddingRepo {
+    fn save(&self, embedding: &QuestionEmbending) -> Result<(), Error>;
+    fn delete(&self, question_id: Uuid) -> Result<(), Error>;
+    fn read(&self, question_id: Uuid) -> Result<QuestionEmbending, Error>;
 }

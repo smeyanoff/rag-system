@@ -1,8 +1,6 @@
 pub mod domain;
 pub mod service;
 
-use domain::DocumentPreparer;
-
 fn main() {
     let text = "
         Мороз и солнце; день чудесный!
@@ -19,11 +17,11 @@ fn main() {
         И ты печальная сидела —
         А нынче… погляди в окно:";
 
-//     let document = domain::Document::new(text.to_string());
-//     let service = service::DocumentService::new(256);
-//     let chunks = service.prepare(&document);
+    //     let document = domain::Document::new(text.to_string());
+    //     let service = service::DocumentService::new(256);
+    //     let chunks = service.prepare(&document);
 
-//     for chunk in &chunks {
-//         println!("{:?}", chunk);
-//     }
+    //     for chunk in &chunks {
+    //         println!("{:?}", chunk);
+    //     }
 }

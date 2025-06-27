@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::domain::document::{Chunk, ChunkRepo, Document, DocumentPreparer, DocumentRepo};
-use crate::domain::embeddings::{ChunkEmbending, ChunkEmbendingRepo, TextVectorizer};
+use crate::domain::document::{Chunk, ChunkRepo, Document, DocumentRepo};
+use crate::domain::embedding::{ChunkEmbending, ChunkEmbendingRepo, TextVectorizer};
 
 pub struct DocumentService {
     pub max_chunk_size: usize,
@@ -32,8 +32,8 @@ impl DocumentService {
     }
 }
 
-impl DocumentPreparer for DocumentService {
-    fn prepare(&self, document: &Document) -> Vec<Chunk> {
+impl DocumentService {
+    fn prepare_document(&self, document: &Document) -> Vec<Chunk> {
         let text = document.text.as_str();
         let mut chunks = Vec::new();
 
@@ -64,7 +64,7 @@ impl DocumentService {
         let document = Document::new(document.to_string());
         self.document_repo.save(&document)?;
         // prepare chunks
-        let chunks = self.prepare(&document);
+        let chunks = self.prepare_document(&document);
         for chunk in chunks.iter() {
             self.chunk_repo.save(chunk)?;
         }
@@ -79,14 +79,14 @@ impl DocumentService {
     pub fn update_document(&self, document_id: Uuid, new_document: &str) -> Result<(), Error> {
         // get the document
         let mut document = self.document_repo.read(document_id)?;
-        for chunk in self.chunk_repo.read(document_id)? {
+        for chunk in self.chunk_repo.read_by_doc(document_id)? {
             self.chunk_repo.delete(chunk.id)?;
             self.embending_repo.delete(chunk.id)?;
         }
         // update document
         document.update(new_document.to_string());
         // update chunks
-        for chunk in self.prepare(&document).iter() {
+        for chunk in self.prepare_document(&document).iter() {
             self.chunk_repo.save(chunk)?;
             let embedding = ChunkEmbending::new(chunk, self.embending_vectorizer.as_ref())?;
             self.embending_repo.save(&embedding)?;
@@ -118,12 +118,12 @@ mod tests {
 
         let doc_repo = Arc::new(crate::domain::document::MockDocumentRepo::new());
         let chunk_repo = Arc::new(crate::domain::document::MockChunkRepo::new());
-        let vectorizer = Arc::new(crate::domain::embeddings::MockTextVectorizer::new());
-        let emb_repo = Arc::new(crate::domain::embeddings::MockChunkEmbendingRepo::new());
+        let vectorizer = Arc::new(crate::domain::embedding::MockTextVectorizer::new());
+        let emb_repo = Arc::new(crate::domain::embedding::MockChunkEmbendingRepo::new());
 
         let document = Document::new(text.to_string());
         let service = DocumentService::new(128, doc_repo, chunk_repo, vectorizer, emb_repo);
-        let chunks = service.prepare(&document);
+        let chunks = service.prepare_document(&document);
 
         assert!(!chunks.is_empty(), "Chunks should not be empty");
 
