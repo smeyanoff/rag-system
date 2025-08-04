@@ -19,14 +19,16 @@ impl Unswer {
 }
 
 #[mockall::automock]
+#[async_trait::async_trait]
 pub trait UnswerRepo {
-    fn save(&self, unswer: &Unswer) -> Result<(), Error>;
-    fn read(&self, unswer_id: Uuid) -> Result<Unswer, Error>;
-    fn delete(&self, unswer_id: Uuid) -> Result<(), Error>;
-    fn update(&self, unswer: &Unswer) -> Result<(), Error>;
+    async fn save(&self, unswer: &Unswer) -> Result<(), Error>;
+    async fn read(&self, unswer_id: Uuid) -> Result<Unswer, Error>;
+    async fn delete(&self, unswer_id: Uuid) -> Result<(), Error>;
+    async fn update(&self, unswer: &Unswer) -> Result<(), Error>;
 }
 
 #[mockall::automock]
+#[async_trait::async_trait]
 pub trait LLM {
-    fn formulate_unswer(&self, question: String, context: Vec<String>) -> Result<String, Error>;
+    async fn formulate_unswer(&self, question: String, context: Vec<String>) -> Result<String, Error>;
 }

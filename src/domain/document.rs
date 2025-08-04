@@ -10,11 +10,12 @@ pub struct Document {
 }
 
 #[mockall::automock]
-pub trait DocumentRepo {
-    fn save(&self, doc: &Document) -> Result<(), Error>;
-    fn delete(&self, doc_id: Uuid) -> Result<(), Error>;
-    fn update(&self, doc: &Document) -> Result<(), Error>;
-    fn read(&self, doc_id: Uuid) -> Result<Document, Error>;
+#[async_trait::async_trait]
+pub trait DocumentRepo: Send + Sync {
+    async fn save(&self, doc: &Document) -> Result<(), Error>;
+    async fn delete(&self, doc_id: Uuid) -> Result<(), Error>;
+    async fn update(&self, doc: &Document) -> Result<(), Error>;
+    async fn read(&self, doc_id: Uuid) -> Result<Document, Error>;
 }
 
 impl Document {
@@ -50,11 +51,12 @@ impl Chunk {
 }
 
 #[mockall::automock]
-pub trait ChunkRepo {
-    fn save(&self, chunk: &Chunk) -> Result<(), Error>;
-    fn delete(&self, chunk_id: Uuid) -> Result<(), Error>;
-    fn read(&self, chunk_id: Uuid) -> Result<Chunk, Error>;
-    fn read_by_doc(&self, doc_id: Uuid) -> Result<Vec<Chunk>, Error>;
+#[async_trait::async_trait]
+pub trait ChunkRepo: Send + Sync {
+    async fn save(&self, chunk: &Chunk) -> Result<(), Error>;
+    async fn delete(&self, chunk_id: Uuid) -> Result<(), Error>;
+    async fn read(&self, chunk_id: Uuid) -> Result<Chunk, Error>;
+    async fn read_by_doc(&self, doc_id: Uuid) -> Result<Vec<Chunk>, Error>;
 }
 
 #[cfg(test)]

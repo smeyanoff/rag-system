@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1.88"
 mockall = "0.13.1"
+tokio = {version="1.47.1", features=["rt", "sync"]}
 uuid = {version="1.17.0", features=["v4"]}

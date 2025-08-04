@@ -17,9 +17,10 @@ impl Question {
 }
 
 #[mockall::automock]
+#[async_trait::async_trait]
 pub trait QuestionRepo {
-    fn save(&self, question: &Question) -> Result<(), Error>;
-    fn delete(&self, question_id: Uuid) -> Result<(), Error>;
-    fn read(&self, question_id: Uuid) -> Result<Question, Error>;
-    fn update(&self, question: &Question) -> Result<(), Error>;
+    async fn save(&self, question: &Question) -> Result<(), Error>;
+    async fn delete(&self, question_id: Uuid) -> Result<(), Error>;
+    async fn read(&self, question_id: Uuid) -> Result<Question, Error>;
+    async fn update(&self, question: &Question) -> Result<(), Error>;
 }

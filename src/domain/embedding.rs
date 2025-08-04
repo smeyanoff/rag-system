@@ -11,8 +11,8 @@ pub struct ChunkEmbending {
 }
 
 impl ChunkEmbending {
-    pub fn new(chunk: &Chunk, vectorizer: &dyn TextVectorizer) -> Result<ChunkEmbending, Error> {
-        match vectorizer.vectorize(chunk.text.as_str()) {
+    pub async fn new(chunk: &Chunk, vectorizer: &dyn TextVectorizer) -> Result<ChunkEmbending, Error> {
+        match vectorizer.vectorize(chunk.text.as_str()).await {
             Ok(vec) => Ok(Self {
                 id: Uuid::new_v4(),
                 chunk_id: chunk.id,
@@ -24,20 +24,23 @@ impl ChunkEmbending {
 }
 
 #[mockall::automock]
-pub trait TextVectorizer {
-    fn vectorize(&self, text: &str) -> Result<Vec<f64>, Error>;
+#[async_trait::async_trait]
+pub trait TextVectorizer: Send + Sync {
+    async fn vectorize(&self, text: &str) -> Result<Vec<f64>, Error>;
 }
 
 #[mockall::automock]
-pub trait VectorSearcher {
-    fn search_similar(&self, vector: &Vec<f64>, top_k: usize) -> Result<Vec<Uuid>, Error>;
+#[async_trait::async_trait]
+pub trait VectorSearcher: Send + Sync {
+    async fn search_similar(&self, vector: &Vec<f64>, top_k: usize) -> Result<Vec<Uuid>, Error>;
 }
 
 #[mockall::automock]
-pub trait ChunkEmbendingRepo {
-    fn save(&self, embedding: &ChunkEmbending) -> Result<(), Error>;
-    fn delete(&self, chunk_id: Uuid) -> Result<(), Error>;
-    fn read(&self, chunk_id: Uuid) -> Result<ChunkEmbending, Error>;
+#[async_trait::async_trait]
+pub trait ChunkEmbendingRepo: Send + Sync {
+    async fn save(&self, embedding: &ChunkEmbending) -> Result<(), Error>;
+    async fn delete(&self, chunk_id: Uuid) -> Result<(), Error>;
+    async fn read(&self, chunk_id: Uuid) -> Result<ChunkEmbending, Error>;
 }
 
 pub struct QuestionEmbending {
@@ -47,11 +50,11 @@ pub struct QuestionEmbending {
 }
 
 impl QuestionEmbending {
-    pub fn new(
+    pub async fn new(
         question: &Question,
         vectorizer: &dyn TextVectorizer,
     ) -> Result<QuestionEmbending, Error> {
-        match vectorizer.vectorize(question.text.as_str()) {
+        match vectorizer.vectorize(question.text.as_str()).await {
             Ok(vec) => Ok(Self {
                 id: Uuid::new_v4(),
                 question_id: question.id,
