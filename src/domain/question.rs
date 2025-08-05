@@ -18,7 +18,7 @@ impl Question {
 
 #[mockall::automock]
 #[async_trait::async_trait]
-pub trait QuestionRepo {
+pub trait QuestionRepo: Send + Sync {
     async fn save(&self, question: &Question) -> Result<(), Error>;
     async fn delete(&self, question_id: Uuid) -> Result<(), Error>;
     async fn read(&self, question_id: Uuid) -> Result<Question, Error>;

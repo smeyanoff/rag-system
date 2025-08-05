@@ -30,5 +30,9 @@ pub trait UnswerRepo {
 #[mockall::automock]
 #[async_trait::async_trait]
 pub trait LLM {
-    async fn formulate_unswer(&self, question: String, context: Vec<String>) -> Result<String, Error>;
+    async fn formulate_unswer(
+        &self,
+        question: String,
+        context: Vec<String>,
+    ) -> Result<String, Error>;
 }

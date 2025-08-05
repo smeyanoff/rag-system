@@ -11,7 +11,10 @@ pub struct ChunkEmbending {
 }
 
 impl ChunkEmbending {
-    pub async fn new(chunk: &Chunk, vectorizer: &dyn TextVectorizer) -> Result<ChunkEmbending, Error> {
+    pub async fn new(
+        chunk: &Chunk,
+        vectorizer: &dyn TextVectorizer,
+    ) -> Result<ChunkEmbending, Error> {
         match vectorizer.vectorize(chunk.text.as_str()).await {
             Ok(vec) => Ok(Self {
                 id: Uuid::new_v4(),
@@ -66,8 +69,9 @@ impl QuestionEmbending {
 }
 
 #[mockall::automock]
-pub trait QuestionEmbeddingRepo {
-    fn save(&self, embedding: &QuestionEmbending) -> Result<(), Error>;
-    fn delete(&self, question_id: Uuid) -> Result<(), Error>;
-    fn read(&self, question_id: Uuid) -> Result<QuestionEmbending, Error>;
+#[async_trait::async_trait]
+pub trait QuestionEmbeddingRepo: Send + Sync {
+    async fn save(&self, embedding: &QuestionEmbending) -> Result<(), Error>;
+    async fn delete(&self, question_id: Uuid) -> Result<(), Error>;
+    async fn read(&self, question_id: Uuid) -> Result<QuestionEmbending, Error>;
 }

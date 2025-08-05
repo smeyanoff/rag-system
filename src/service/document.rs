@@ -18,11 +18,11 @@ pub struct DocumentService {
 impl DocumentService {
     pub fn new(
         max_chunk_size: usize,
-        max_async_permits: usize,
         document_repo: Arc<dyn DocumentRepo>,
         chunk_repo: Arc<dyn ChunkRepo>,
         embending_vectorizer: Arc<dyn TextVectorizer>,
         embending_repo: Arc<dyn ChunkEmbendingRepo>,
+        semaphore: Arc<tokio::sync::Semaphore>,
     ) -> Self {
         DocumentService {
             max_chunk_size: max_chunk_size,
@@ -30,7 +30,7 @@ impl DocumentService {
             chunk_repo: chunk_repo,
             embending_vectorizer: embending_vectorizer,
             embending_repo: embending_repo,
-            semaphore: Arc::new(tokio::sync::Semaphore::new(max_async_permits))
+            semaphore: semaphore,
         }
     }
 }
@@ -66,56 +66,59 @@ impl DocumentService {
         // 1. Сохраняем сам документ
         let document = Document::new(document.to_string());
         self.document_repo.save(&document).await?;
- 
+
         // 2. Разбиваем на чанки
         let chunks = self.prepare_document(&document);
- 
+
         // 3. Создаём семафор для ограничения параллелизма
         let mut handles = Vec::with_capacity(chunks.len());
- 
+
         for chunk in chunks {
             let semaphore = self.semaphore.clone();
             let chunk_repo = self.chunk_repo.clone();
             let embending_repo = self.embending_repo.clone();
             let vectorizer = self.embending_vectorizer.clone();
- 
+
             handles.push(tokio::spawn(async move {
                 let _permit = semaphore.acquire_owned().await.unwrap();
- 
+
                 // Сохраняем чанк
                 chunk_repo.save(&chunk).await?;
- 
+
                 // Генерируем эмбеддинг
                 let embending = ChunkEmbending::new(&chunk, vectorizer.as_ref()).await?;
- 
+
                 // Сохраняем эмбеддинг
                 embending_repo.save(&embending).await?;
- 
+
                 Ok::<(), Error>(())
             }));
         }
- 
+
         // 4. Ждём выполнения всех задач
         for handle in handles {
             handle.await.unwrap()?;
         }
- 
+
         Ok(())
     }
 
-
-    pub async fn update_document(&self, document_id: Uuid, new_document: &str) -> Result<(), Error> {
-    // 1. Получаем документ и старые чанки
+    pub async fn update_document(
+        &self,
+        document_id: Uuid,
+        new_document: &str,
+    ) -> Result<(), Error> {
+        // 1. Получаем документ и старые чанки
         let mut document = self.document_repo.read(document_id).await?;
         let doc_chunks = self.chunk_repo.read_by_doc(document_id).await?;
-    
+
         // 2. Удаляем старые чанки и эмбеддинги параллельно
         let mut delete_handles = Vec::with_capacity(doc_chunks.len());
         for chunk in doc_chunks {
             let semaphore = self.semaphore.clone();
             let chunk_repo = self.chunk_repo.clone();
             let embedding_repo = self.embending_repo.clone();
-    
+
             delete_handles.push(tokio::spawn(async move {
                 let _permit = semaphore.acquire().await;
                 chunk_repo.delete(chunk.id).await?;
@@ -126,13 +129,13 @@ impl DocumentService {
         for h in delete_handles {
             h.await.unwrap()?;
         }
-    
+
         // 3. Обновляем документ
         document.update(new_document.to_string());
-    
+
         // 4. Готовим новые чанки
         let chunks = self.prepare_document(&document);
-    
+
         // 5. Параллельно векторизуем + сохраняем
         let mut vectorize_handles = Vec::with_capacity(chunks.len());
         for chunk in chunks {
@@ -140,27 +143,27 @@ impl DocumentService {
             let chunk_repo = self.chunk_repo.clone();
             let embedding_repo = self.embending_repo.clone();
             let vectorizer = self.embending_vectorizer.clone();
-    
+
             vectorize_handles.push(tokio::spawn(async move {
                 let _permit = semaphore.acquire().await;
-    
+
                 // сохраняем чанк
                 chunk_repo.save(&chunk).await?;
-    
+
                 // векторизация (REST)
                 let embedding = ChunkEmbending::new(&chunk, vectorizer.as_ref()).await?;
-    
+
                 // сохраняем эмбеддинг
                 embedding_repo.save(&embedding).await?;
                 Ok::<(), Error>(())
             }));
         }
-    
+
         // ждем всех
         for h in vectorize_handles {
             h.await.unwrap()?;
         }
-    
+
         Ok(())
     }
 }
@@ -190,9 +193,11 @@ mod tests {
         let chunk_repo = Arc::new(crate::domain::document::MockChunkRepo::new());
         let vectorizer = Arc::new(crate::domain::embedding::MockTextVectorizer::new());
         let emb_repo = Arc::new(crate::domain::embedding::MockChunkEmbendingRepo::new());
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(5));
 
         let document = Document::new(text.to_string());
-        let service = DocumentService::new(128, 5, doc_repo, chunk_repo, vectorizer, emb_repo);
+        let service =
+            DocumentService::new(128, doc_repo, chunk_repo, vectorizer, emb_repo, semaphore);
         let chunks = service.prepare_document(&document);
 
         assert!(!chunks.is_empty(), "Chunks should not be empty");

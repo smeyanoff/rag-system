@@ -2,7 +2,7 @@ use std::fmt::Error;
 use std::sync::Arc;
 
 use crate::domain::embedding::{QuestionEmbeddingRepo, QuestionEmbending, TextVectorizer};
-use crate::domain::question::{QuestionRepo, Question};
+use crate::domain::question::{Question, QuestionRepo};
 
 pub struct QuestionService {
     question_repo: Arc<dyn QuestionRepo>,
@@ -25,11 +25,33 @@ impl QuestionService {
 }
 
 impl QuestionService {
-    pub fn process_new_question(&self, text: &str) -> Result<(), Error> {
-        let question = Question::new(text.to_string());
-        self.question_repo.save(&question)?;
-        let question_embedding = QuestionEmbending::new(&question, self.vectorizer.as_ref())?;
-        self.embedding_repo.save(&question_embedding)?;
+    pub async fn process_new_question(&self, text: &str) -> Result<(), Error> {
+        let question = Arc::new(Question::new(text.to_string()));
+        let question_clone = question.clone();
+        let repo_clone = self.question_repo.clone();
+
+        // Сохраняем вопрос
+        let save_handle = tokio::spawn(async move {
+            repo_clone.save(&question_clone).await?;
+            Ok::<(), Error>(())
+        });
+
+        let vectorizer = self.vectorizer.clone();
+        let embedding_repo = self.embedding_repo.clone();
+        let question_clone2 = question.clone();
+
+        // Создаем и сохраняем эмбеддинг
+        let embed_handle = tokio::spawn(async move {
+            let question_embedding =
+                QuestionEmbending::new(&question_clone2, vectorizer.as_ref()).await?;
+            embedding_repo.save(&question_embedding).await?;
+            Ok::<(), Error>(())
+        });
+
+        // Ждём обе задачи (или можно не ждать, если "fire and forget")
+        save_handle.await.unwrap()?;
+        embed_handle.await.unwrap()?;
+
         Ok(())
     }
 }
